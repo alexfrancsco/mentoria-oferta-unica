@@ -22,6 +22,7 @@
 .screen video{pointer-events:none}
 .screen .center-play{display:flex;align-items:center;justify-content:center;z-index:3}
 .screen.is-playing .center-play{display:none!important}
+.screen .youtube-player{position:absolute;inset:0;width:100%;height:100%;overflow:hidden}.screen .youtube-player iframe{width:100%!important;height:100%!important;display:block;border:0;pointer-events:none}.yt-poster{position:absolute;inset:0;background:#111 url('https://i.ytimg.com/vi/fscOFTVFAT0/maxresdefault.jpg') center/cover no-repeat;z-index:1}.screen.started .yt-poster{display:none}.screen .center-play{display:grid;z-index:3}.video-error{position:absolute;left:14px;bottom:12px;z-index:5;background:#111e;color:#fff;padding:8px 12px;font:13px Arial,sans-serif;border-radius:7px}.video-error[hidden]{display:none}.video-error a{color:#f47721}
 </style>
 </head>
 <body>
@@ -37,8 +38,10 @@
   <div class="video-shell">
    <div class="player">
     <div class="screen" id="screen">
-     <video id="presentationVideo" poster="capa-provisoria.svg" playsinline preload="metadata" disablepictureinpicture disableremoteplayback controlslist="nodownload nofullscreen noremoteplayback" aria-label="Apresentação comercial da Mentoria Oferta Única"></video>
+     <div id="ytPlayer" class="youtube-player" aria-label="Vídeo de apresentação comercial"></div>
+     <div class="yt-poster" id="ytPoster" aria-hidden="true"></div>
      <button class="center-play" id="centerPlay" type="button" aria-label="Iniciar apresentação">▶</button>
+     <p id="videoError" hidden class="video-error">O vídeo não pôde ser carregado aqui. <a href="https://youtu.be/fscOFTVFAT0" target="_blank" rel="noopener">Abrir no YouTube</a>.</p>
     </div>
    </div>
    <div class="duration"><span class="dot"></span><span>Assista à apresentação para conhecer as modalidades de acompanhamento.</span></div>
@@ -61,61 +64,88 @@
 <footer class="footer"><div class="container"><span>© 2026 Mentoria Oferta Única · Alex Francisco</span><span>Marketing, estratégia e vendas.</span></div></footer>
 
 <script>
-// O arquivo MP4 deve estar na mesma pasta que este HTML no servidor.
-const VIDEO_URL = 'mentoriaofertaunicafinal.mp4';
-// Configure seu número com DDI e DDD para ativar os botões de contratação.
+const VIDEO_ID = 'fscOFTVFAT0';
 const WHATSAPP_NUMBER = '';
 const UNLOCK_AT_FRACTION = 0.90;
-const video = document.getElementById('presentationVideo');
+const STORAGE_KEY = 'oferta-unica-watched-' + VIDEO_ID;
 const screen = document.getElementById('screen');
 const centerPlay = document.getElementById('centerPlay');
 const offers = document.getElementById('modalidades');
-let maxWatched = 0;
-let internalSeek = false;
-let unlocked = false;
-let lastTime = 0;
-let lastStamp = 0;
+const loadingMessage = document.getElementById('videoError');
+let player = null, ready = false, started = false, unlocked = false;
+let maxWatched = 0, previousTime = 0, previousStamp = 0;
 function setUnlocked(value){
   unlocked = value;
   offers.classList.toggle('is-locked', !value);
   offers.setAttribute('data-unlocked', String(value));
-  offers.querySelectorAll('.offer-private').forEach(el => el.setAttribute('aria-hidden', String(!value)));
-  if(value){
-    try{ sessionStorage.setItem('oferta-unica-v3-completed', VIDEO_URL); }catch(e){}
+  offers.querySelectorAll('.offer-private').forEach(el=>el.setAttribute('aria-hidden', String(!value)));
+  if(value && !document.getElementById('owner-panel')){
+    try { sessionStorage.setItem(STORAGE_KEY, '1'); }catch(e){}
   }
 }
-video.src = VIDEO_URL;
-screen.classList.add('has-video');
-video.controls = false;
-video.disablePictureInPicture = true;
-video.playbackRate = 1;
-// Após assistir, a pessoa pode rever a página sem recomeçar a apresentação.
-try{ if(sessionStorage.getItem('oferta-unica-v3-completed')===VIDEO_URL) setUnlocked(true); }catch(e){}
-centerPlay.addEventListener('click', async () => {
-  try{ await video.play(); }catch(e){ centerPlay.style.display='block'; }
-});
-video.addEventListener('playing', () => { screen.classList.add('is-playing'); centerPlay.style.display='none'; lastStamp=performance.now(); lastTime=video.currentTime; });
-video.addEventListener('pause', () => { if(!video.ended) { screen.classList.remove('is-playing'); centerPlay.style.display='block'; centerPlay.setAttribute('aria-label','Continuar apresentação'); } });
-video.addEventListener('seeking', () => {
-  if(internalSeek || unlocked) return;
-  if(video.currentTime > maxWatched + 0.4){
-    internalSeek = true;
-    video.currentTime = maxWatched;
-    internalSeek = false;
-  }
-});
-video.addEventListener('timeupdate', () => {
-  if(!internalSeek) maxWatched = Math.max(maxWatched, video.currentTime);
-  if(!unlocked && Number.isFinite(video.duration) && video.duration > 0 && maxWatched >= video.duration * (window.REVIEW_UNLOCK_FRACTION ?? UNLOCK_AT_FRACTION)){ setUnlocked(true); }
-});
-video.addEventListener('ratechange', () => { if(video.playbackRate !== 1) video.playbackRate=1; });
-video.addEventListener('ended', () => setUnlocked(true));
+try { if(sessionStorage.getItem(STORAGE_KEY)==='1') setUnlocked(true); } catch(e){}
+function showVideoError(){
+  if(loadingMessage) loadingMessage.hidden=false;
+  centerPlay.style.display='grid';
+  centerPlay.textContent='▶';
+  centerPlay.disabled=false;
+}
+function startVideo(){
+  if(!ready || !player){ centerPlay.textContent='…'; return; }
+  try {
+    player.playVideo();
+    started = true;
+    screen.classList.add('started');
+    centerPlay.style.display='none';
+  }catch(e){ showVideoError(); }
+}
+centerPlay.addEventListener('click', startVideo);
+window.onYouTubeIframeAPIReady = function(){
+  player = new YT.Player('ytPlayer', {
+    width: 920, height: 518, videoId: VIDEO_ID,
+    playerVars: { controls:0, disablekb:1, playsinline:1, fs:0, rel:0, iv_load_policy:3, origin:location.origin },
+    events: {
+      onReady: ()=>{ ready=true; if(centerPlay.textContent==='…')startVideo(); },
+      onStateChange: e=>{
+        if(e.data===YT.PlayerState.PLAYING){
+          screen.classList.add('started'); centerPlay.style.display='none';
+          previousTime=player.getCurrentTime()||0; previousStamp=performance.now();
+          try{player.setPlaybackRate(1)}catch(err){}
+        }
+        if(e.data===YT.PlayerState.ENDED){setUnlocked(true);}
+      },
+      onError: showVideoError,
+      onPlaybackRateChange:()=>{try{if(player.getPlaybackRate()!==1)player.setPlaybackRate(1)}catch(e){}}
+    }
+  });
+};
+setInterval(()=>{
+  if(!ready || !started || !player || !window.YT) return;
+  try{
+    if(player.getPlayerState()!==YT.PlayerState.PLAYING) return;
+    const now=performance.now(), current=player.getCurrentTime(), duration=player.getDuration();
+    if(!Number.isFinite(current)||!Number.isFinite(duration)||duration<=0)return;
+    const elapsed=Math.max(0,(now-previousStamp)/1000);
+    if(!unlocked && current > maxWatched+Math.max(1.5,elapsed+0.8)){
+      player.seekTo(Math.max(0,maxWatched),true);
+      previousTime=maxWatched; previousStamp=now; return;
+    }
+    maxWatched=Math.max(maxWatched,current);
+    previousTime=current; previousStamp=now;
+    const threshold=window.REVIEW_UNLOCK_FRACTION ?? UNLOCK_AT_FRACTION;
+    if(!unlocked && maxWatched>=duration*threshold) setUnlocked(true);
+  }catch(e){}
+},350);
 document.querySelectorAll('[data-plan]').forEach(btn=>btn.addEventListener('click',()=>{
-  if(!unlocked) return;
-  if(!WHATSAPP_NUMBER){ alert('Configure seu número de WhatsApp no HTML antes de publicar.'); return; }
-  const msg = 'Olá, assisti à apresentação e quero conversar sobre a ' + btn.dataset.plan + '.';
+  if(!unlocked)return;
+  if(!WHATSAPP_NUMBER){alert('Configure seu número de WhatsApp no HTML antes de publicar.');return;}
+  const msg='Olá, assisti à apresentação e quero conversar sobre a '+btn.dataset.plan+'.';
   window.open('https://wa.me/'+WHATSAPP_NUMBER+'?text='+encodeURIComponent(msg),'_blank','noopener');
 }));
+const ytScript=document.createElement('script');
+ytScript.src='https://www.youtube.com/iframe_api';
+ytScript.onerror=showVideoError;
+document.head.appendChild(ytScript);
 </script>
 </body>
 </html>
