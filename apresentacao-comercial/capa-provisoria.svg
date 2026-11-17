@@ -1,0 +1,10 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1600 900" role="img" aria-label="Capa provisória Mentoria Oferta Única">
+<defs><radialGradient id="bg"><stop stop-color="#24201c"/><stop offset="1" stop-color="#0d0d0d"/></radialGradient></defs>
+<rect width="1600" height="900" fill="url(#bg)"/>
+<text x="140" y="175" fill="#f47721" font-family="Arial,sans-serif" font-weight="bold" font-size="42" letter-spacing="6">MENTORIA OFERTA ÚNICA</text>
+<rect x="140" y="225" width="200" height="8" fill="#f47721"/>
+<text x="140" y="367" fill="white" font-family="Georgia,serif" font-size="90">Veja como posso</text>
+<text x="140" y="470" fill="white" font-family="Georgia,serif" font-size="90">estruturar seu</text>
+<text x="140" y="573" fill="white" font-family="Georgia,serif" font-size="90">marketing e suas vendas</text>
+<text x="144" y="660" fill="#bbb" font-family="Arial,sans-serif" font-size="40">Apresentação comercial</text>
+<rect x="1584" width="16" height="900" fill="#f47721"/></svg>
