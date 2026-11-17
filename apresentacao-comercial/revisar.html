@@ -22,7 +22,8 @@
 .screen video{pointer-events:none}
 .screen .center-play{display:flex;align-items:center;justify-content:center;z-index:3}
 .screen.is-playing .center-play{display:none!important}
-.screen .youtube-player{position:absolute;inset:0;width:100%;height:100%;overflow:hidden}.screen .youtube-player iframe{width:100%!important;height:100%!important;display:block;border:0;pointer-events:none}.yt-poster{position:absolute;inset:0;background:#111 url('https://i.ytimg.com/vi/fscOFTVFAT0/maxresdefault.jpg') center/cover no-repeat;z-index:1}.screen.started .yt-poster{display:none}.screen .center-play{display:grid;z-index:3}.video-error{position:absolute;left:14px;bottom:12px;z-index:5;background:#111e;color:#fff;padding:8px 12px;font:13px Arial,sans-serif;border-radius:7px}.video-error[hidden]{display:none}.video-error a{color:#f47721}
+
+.screen .vimeo-player{position:absolute;inset:0;width:100%;height:100%;overflow:hidden}.screen .vimeo-player iframe{width:100%!important;height:100%!important;display:block;border:0;pointer-events:none}.vimeo-poster{position:absolute;inset:0;background:#111 url('capa-provisoria.svg') center/cover no-repeat;z-index:1}.screen.started .vimeo-poster{display:none}.screen .center-play{display:grid;z-index:3}.video-error{position:absolute;bottom:10px;left:12px;z-index:5;background:#111e;color:#fff;padding:8px 12px;font:13px Arial,sans-serif;border-radius:7px}.video-error[hidden]{display:none}.video-error a{color:#f47721}
 </style>
 </head>
 <body>
@@ -38,9 +39,10 @@
   <div class="video-shell">
    <div class="player">
     <div class="screen" id="screen">
-     <div id="ytPlayer" class="youtube-player" aria-label="Vídeo de apresentação comercial"></div>
-     <div class="yt-poster" id="ytPoster" aria-hidden="true"></div>
+     <div id="vimeoPlayer" class="vimeo-player" aria-label="Vídeo de apresentação comercial"></div>
+     <div class="vimeo-poster" id="vimeoPoster" aria-hidden="true"></div>
      <button class="center-play" id="centerPlay" type="button" aria-label="Iniciar apresentação">▶</button>
+     <p id="videoError" hidden class="video-error">Não foi possível carregar o vídeo aqui. <a href="https://vimeo.com/1247764663" target="_blank" rel="noopener">Abrir no Vimeo</a>.</p>
      <p id="videoError" hidden class="video-error">O vídeo não pôde ser carregado aqui. <a href="https://youtu.be/fscOFTVFAT0" target="_blank" rel="noopener">Abrir no YouTube</a>.</p>
     </div>
    </div>
@@ -63,89 +65,89 @@
 </main>
 <footer class="footer"><div class="container"><span>© 2026 Mentoria Oferta Única · Alex Francisco</span><span>Marketing, estratégia e vendas.</span></div></footer>
 
+<script src="https://player.vimeo.com/api/player.js"></script>
 <script>
-const VIDEO_ID = 'fscOFTVFAT0';
+const VIDEO_ID = '1247764663';
 const WHATSAPP_NUMBER = '';
 const UNLOCK_AT_FRACTION = 0.90;
-const STORAGE_KEY = 'oferta-unica-watched-' + VIDEO_ID;
+const STORAGE_KEY = 'oferta-unica-watched-vimeo-' + VIDEO_ID;
 const screen = document.getElementById('screen');
 const centerPlay = document.getElementById('centerPlay');
 const offers = document.getElementById('modalidades');
-const loadingMessage = document.getElementById('videoError');
-let player = null, ready = false, started = false, unlocked = false;
-let maxWatched = 0, previousTime = 0, previousStamp = 0;
+const videoError = document.getElementById('videoError');
+let player = null, ready = false, unlocked = false, started = false;
+let maxWatched = 0, previousSecond = 0, previousStamp = 0, correction = false;
 function setUnlocked(value){
   unlocked = value;
   offers.classList.toggle('is-locked', !value);
   offers.setAttribute('data-unlocked', String(value));
-  offers.querySelectorAll('.offer-private').forEach(el=>el.setAttribute('aria-hidden', String(!value)));
+  offers.querySelectorAll('.offer-private').forEach(el=>el.setAttribute('aria-hidden',String(!value)));
   if(value && !document.getElementById('owner-panel')){
-    try { sessionStorage.setItem(STORAGE_KEY, '1'); }catch(e){}
+    try{ sessionStorage.setItem(STORAGE_KEY,'1'); }catch(e){}
   }
 }
-try { if(sessionStorage.getItem(STORAGE_KEY)==='1') setUnlocked(true); } catch(e){}
+try{if(sessionStorage.getItem(STORAGE_KEY)==='1')setUnlocked(true);}catch(e){}
 function showVideoError(){
-  if(loadingMessage) loadingMessage.hidden=false;
+  videoError.hidden=false;
   centerPlay.style.display='grid';
-  centerPlay.textContent='▶';
   centerPlay.disabled=false;
+  centerPlay.textContent='▶';
 }
-function startVideo(){
-  if(!ready || !player){ centerPlay.textContent='…'; return; }
-  try {
-    player.playVideo();
-    started = true;
-    screen.classList.add('started');
-    centerPlay.style.display='none';
-  }catch(e){ showVideoError(); }
-}
-centerPlay.addEventListener('click', startVideo);
-window.onYouTubeIframeAPIReady = function(){
-  player = new YT.Player('ytPlayer', {
-    width: 920, height: 518, videoId: VIDEO_ID,
-    playerVars: { controls:0, disablekb:1, playsinline:1, fs:0, rel:0, iv_load_policy:3, origin:location.origin },
-    events: {
-      onReady: ()=>{ ready=true; if(centerPlay.textContent==='…')startVideo(); },
-      onStateChange: e=>{
-        if(e.data===YT.PlayerState.PLAYING){
-          screen.classList.add('started'); centerPlay.style.display='none';
-          previousTime=player.getCurrentTime()||0; previousStamp=performance.now();
-          try{player.setPlaybackRate(1)}catch(err){}
-        }
-        if(e.data===YT.PlayerState.ENDED){setUnlocked(true);}
-      },
-      onError: showVideoError,
-      onPlaybackRateChange:()=>{try{if(player.getPlaybackRate()!==1)player.setPlaybackRate(1)}catch(e){}}
+try{
+  if(!window.Vimeo || !Vimeo.Player)throw new Error('Vimeo API indisponível');
+  player = new Vimeo.Player('vimeoPlayer', {
+    id: Number(VIDEO_ID),
+    responsive:true,
+    controls:false,
+    title:false,
+    byline:false,
+    portrait:false,
+    dnt:true,
+    playsinline:true,
+    autopause:false
+  });
+  player.ready().then(()=>{ready=true;if(centerPlay.dataset.pending==='1')startVideo();}).catch(showVideoError);
+  player.on('play',()=>{started=true;screen.classList.add('started');centerPlay.style.display='none';previousStamp=performance.now();});
+  player.on('timeupdate', async data=>{
+    if(correction || !started)return;
+    const now=performance.now();
+    const seconds=data.seconds||0;
+    const diff=Math.max(0,(now-previousStamp)/1000);
+    if(!unlocked && seconds>maxWatched+Math.max(1.3,diff+0.8)){
+      correction=true;
+      try{await player.setCurrentTime(maxWatched);}catch(e){}
+      correction=false;
+      previousStamp=performance.now();
+      return;
+    }
+    maxWatched=Math.max(maxWatched,seconds);
+    previousSecond=seconds;previousStamp=now;
+    const threshold=window.REVIEW_UNLOCK_FRACTION ?? UNLOCK_AT_FRACTION;
+    if(!unlocked && data.duration && maxWatched>=data.duration*threshold)setUnlocked(true);
+  });
+  player.on('seeked',async data=>{
+    if(correction||unlocked)return;
+    if(data.seconds>maxWatched+0.8){
+      correction=true;
+      try{await player.setCurrentTime(maxWatched);}catch(e){}
+      correction=false;
     }
   });
-};
-setInterval(()=>{
-  if(!ready || !started || !player || !window.YT) return;
-  try{
-    if(player.getPlayerState()!==YT.PlayerState.PLAYING) return;
-    const now=performance.now(), current=player.getCurrentTime(), duration=player.getDuration();
-    if(!Number.isFinite(current)||!Number.isFinite(duration)||duration<=0)return;
-    const elapsed=Math.max(0,(now-previousStamp)/1000);
-    if(!unlocked && current > maxWatched+Math.max(1.5,elapsed+0.8)){
-      player.seekTo(Math.max(0,maxWatched),true);
-      previousTime=maxWatched; previousStamp=now; return;
-    }
-    maxWatched=Math.max(maxWatched,current);
-    previousTime=current; previousStamp=now;
-    const threshold=window.REVIEW_UNLOCK_FRACTION ?? UNLOCK_AT_FRACTION;
-    if(!unlocked && maxWatched>=duration*threshold) setUnlocked(true);
-  }catch(e){}
-},350);
+  player.on('playbackratechange',()=>{player.setPlaybackRate(1).catch(()=>{});});
+  player.on('ended',()=>setUnlocked(true));
+  player.on('error',showVideoError);
+}catch(e){showVideoError();}
+function startVideo(){
+  if(!ready){centerPlay.dataset.pending='1';centerPlay.textContent='…';return;}
+  player.play().then(()=>{started=true;screen.classList.add('started');centerPlay.style.display='none';}).catch(showVideoError);
+}
+centerPlay.addEventListener('click',startVideo);
 document.querySelectorAll('[data-plan]').forEach(btn=>btn.addEventListener('click',()=>{
   if(!unlocked)return;
   if(!WHATSAPP_NUMBER){alert('Configure seu número de WhatsApp no HTML antes de publicar.');return;}
   const msg='Olá, assisti à apresentação e quero conversar sobre a '+btn.dataset.plan+'.';
   window.open('https://wa.me/'+WHATSAPP_NUMBER+'?text='+encodeURIComponent(msg),'_blank','noopener');
 }));
-const ytScript=document.createElement('script');
-ytScript.src='https://www.youtube.com/iframe_api';
-ytScript.onerror=showVideoError;
-document.head.appendChild(ytScript);
 </script>
 <aside id="owner-panel" aria-label="Painel de revisão" style="position:fixed;right:18px;bottom:18px;z-index:100;background:#fff;color:#111;padding:18px;border:1px solid #dedbd5;border-radius:14px;box-shadow:0 14px 50px #0004;width:min(340px,calc(100vw - 36px));font:13px Arial,sans-serif"><strong style="font-size:15px">Prévia privada da página</strong><p style="line-height:1.5;color:#555;margin:9px 0 13px">Controles exclusivos para revisar as modalidades. Não estarão no arquivo público.</p><label for="owner-threshold">Liberar ofertas em <strong id="owner-pct">90%</strong> do vídeo</label><input id="owner-threshold" type="range" min="50" max="100" value="90" step="1" style="width:100%;margin:12px 0"/><div style="display:flex;gap:8px;flex-wrap:wrap"><button type="button" id="owner-show" style="background:#f47721;border:0;border-radius:6px;padding:11px;font-weight:700;cursor:pointer;flex:1">Mostrar ofertas</button><button type="button" id="owner-hide" style="background:#111;color:white;border:0;border-radius:6px;padding:11px;font-weight:700;cursor:pointer;flex:1">Ocultar ofertas</button></div><button id="owner-collapse" type="button" style="border:0;background:transparent;text-decoration:underline;margin-top:12px;cursor:pointer;color:#555;padding:0">Recolher painel</button></aside><button id="owner-reopen" type="button" style="display:none;position:fixed;right:18px;bottom:18px;z-index:100;border:0;border-radius:40px;padding:13px 17px;font:700 13px Arial;background:#f47721;color:#111;box-shadow:0 6px 28px #0003;cursor:pointer">Abrir painel de revisão</button><script>
 (function(){
