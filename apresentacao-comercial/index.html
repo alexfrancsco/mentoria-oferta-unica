@@ -111,6 +111,7 @@ try{
     controls:false,
     muted:false,
     autoplay:false,
+    background:false,
     title:false,
     byline:false,
     portrait:false,
@@ -118,8 +119,8 @@ try{
     playsinline:true,
     autopause:false
   });
-  player.ready().then(()=>{ready=true;if(!starting){playStatus.hidden=true;centerPlay.style.display='grid';}centerPlay.setAttribute('aria-label','Iniciar apresentação');}).catch(showVideoError);
-  player.on('play',()=>{starting=false;playStatus.hidden=true;started=true;screen.classList.add('started');centerPlay.style.display='none';previousStamp=performance.now();});
+  player.ready().then(()=>{ready=true;player.setMuted(false).catch(()=>{});if(!starting){playStatus.hidden=true;centerPlay.style.display='grid';}centerPlay.setAttribute('aria-label','Iniciar apresentação');}).catch(showVideoError);
+  player.on('play',()=>{starting=false;playStatus.hidden=true;started=true;screen.classList.add('started');centerPlay.style.display='none';previousStamp=performance.now();player.setMuted(false).catch(()=>{});});
   player.on('timeupdate', async data=>{
     if(correction || !started || ending)return;
 
@@ -156,8 +157,8 @@ function startVideo(){
   playStatus.textContent='Iniciando apresentação…';
   playStatus.hidden=false;
   centerPlay.style.display='none';
-  // A primeira interação já solicita play, mesmo que o iframe ainda esteja inicializando.
-  // A API do Vimeo gerencia o comando pendente durante sua inicialização.
+  // Enviar ativação de áudio e play no mesmo gesto, sem aguardar uma Promise.
+  player.setMuted(false).catch(()=>{});
   player.play().then(()=>{
     playStatus.hidden=true;starting=false;started=true;screen.classList.add('started');
     centerPlay.style.display='none';
