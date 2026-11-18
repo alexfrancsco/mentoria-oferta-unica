@@ -46,7 +46,7 @@
      <div class="vimeo-poster" id="vimeoPoster" aria-hidden="true"></div>
      <button class="center-play" id="centerPlay" type="button" aria-label="Iniciar apresentação"></button>
      <span class="play-status" id="playStatus" role="status" aria-live="polite" hidden>Iniciando apresentação…</span>
-     <div class="video-end-screen" id="videoEndScreen" hidden aria-live="polite"><span>Apresentação concluída.</span><a href="#modalidades">Veja as modalidades abaixo ↓</a></div>
+     <div class="video-end-screen" id="videoEndScreen" hidden aria-live="polite"><span>Apresentação concluída.</span></div>
      <button type="button" id="soundToggle" class="sound-toggle" hidden>Ativar som</button>
      <p id="videoError" hidden class="video-error">Não foi possível carregar o vídeo aqui. <a href="https://vimeo.com/1247764663" target="_blank" rel="noopener">Abrir no Vimeo</a>.</p>
      <p id="videoError" hidden class="video-error">O vídeo não pôde ser carregado aqui. <a href="https://youtu.be/fscOFTVFAT0" target="_blank" rel="noopener">Abrir no YouTube</a>.</p>
@@ -123,15 +123,7 @@ try{
   player.on('play',()=>{starting=false;playStatus.hidden=true;started=true;screen.classList.add('started');centerPlay.style.display='none';previousStamp=performance.now();refreshAudioStatus();});
   player.on('timeupdate', async data=>{
     if(correction || !started || ending)return;
-    // Encerrar antes do Vimeo exibir recomendações de outros vídeos.
-    if(data.duration && data.duration-data.seconds<=2.2){
-      ending=true;
-      setUnlocked(true);
-      videoEndScreen.hidden=false;
-      soundToggle.hidden=true;
-      player.pause().catch(()=>{});
-      return;
-    }
+
     const now=performance.now();
     const seconds=data.seconds||0;
     const diff=Math.max(0,(now-previousStamp)/1000);
