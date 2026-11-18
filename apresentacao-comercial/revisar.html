@@ -4,6 +4,10 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <meta name="theme-color" content="#111111">
+<link rel="preconnect" href="https://player.vimeo.com" crossorigin>
+<link rel="preconnect" href="https://i.vimeocdn.com" crossorigin>
+<link rel="preconnect" href="https://f.vimeocdn.com" crossorigin>
+<link rel="preload" href="https://player.vimeo.com/api/player.js" as="script">
 <meta name="description" content="Apresentação comercial da Mentoria Oferta Única: marketing, posicionamento, aquisição e vendas.">
 <title>Apresentação Comercial — Mentoria Oferta Única</title>
 <style>
@@ -24,7 +28,7 @@
 .screen.is-playing .center-play{display:none!important}
 
 .screen .vimeo-player{position:absolute;inset:0;width:100%;height:100%;overflow:hidden}.screen .vimeo-player iframe{width:100%!important;height:100%!important;display:block;border:0;pointer-events:none}.vimeo-poster{position:absolute;inset:0;background:#111 url('capa-apresentacao.svg') center/cover no-repeat;z-index:1}.screen.started .vimeo-poster{display:none}.screen .center-play{display:grid;z-index:3}.video-error{position:absolute;bottom:10px;left:12px;z-index:5;background:#111e;color:#fff;padding:8px 12px;font:13px Arial,sans-serif;border-radius:7px}.video-error[hidden]{display:none}.video-error a{color:#f47721}
-.center-play::before{content:"";display:block;width:0;height:0;border-top:13px solid transparent;border-bottom:13px solid transparent;border-left:22px solid #111;margin-left:5px}.center-play[data-pending="1"]::before{display:none}</style>
+.center-play::before{content:"";display:block;width:0;height:0;border-top:13px solid transparent;border-bottom:13px solid transparent;border-left:22px solid #111;margin-left:5px}.center-play[data-pending="1"]::before{display:none}.play-status{position:absolute;left:50%;bottom:15px;transform:translateX(-50%);z-index:4;background:rgba(0,0,0,.76);color:#fff;padding:8px 14px;border-radius:30px;font:600 12px Arial,sans-serif;white-space:nowrap;pointer-events:none}.play-status[hidden]{display:none}</style>
 </head>
 <body>
 <main>
@@ -41,6 +45,7 @@
      <div id="vimeoPlayer" class="vimeo-player" aria-label="Vídeo de apresentação comercial"></div>
      <div class="vimeo-poster" id="vimeoPoster" aria-hidden="true"></div>
      <button class="center-play" id="centerPlay" type="button" aria-label="Iniciar apresentação"></button>
+     <span class="play-status" id="playStatus" role="status" aria-live="polite" hidden>Iniciando apresentação…</span>
      <p id="videoError" hidden class="video-error">Não foi possível carregar o vídeo aqui. <a href="https://vimeo.com/1247764663" target="_blank" rel="noopener">Abrir no Vimeo</a>.</p>
      <p id="videoError" hidden class="video-error">O vídeo não pôde ser carregado aqui. <a href="https://youtu.be/fscOFTVFAT0" target="_blank" rel="noopener">Abrir no YouTube</a>.</p>
     </div>
@@ -72,6 +77,7 @@ const UNLOCK_AT_FRACTION = 0.90;
 const STORAGE_KEY = 'oferta-unica-watched-vimeo-' + VIDEO_ID;
 const screen = document.getElementById('screen');
 const centerPlay = document.getElementById('centerPlay');
+const playStatus = document.getElementById('playStatus');
 const offers = document.getElementById('modalidades');
 const videoError = document.getElementById('videoError');
 
@@ -88,6 +94,7 @@ function setUnlocked(value){
 }
 try{if(sessionStorage.getItem(STORAGE_KEY)==='1')setUnlocked(true);}catch(e){}
 function showVideoError(){
+  playStatus.hidden=true;
   videoError.hidden=false;
   centerPlay.style.display='grid';
   centerPlay.disabled=false;
@@ -107,7 +114,7 @@ try{
     autopause:false
   });
   player.ready().then(()=>{ready=true;if(centerPlay.dataset.pending==='1')startVideo();}).catch(showVideoError);
-  player.on('play',()=>{started=true;screen.classList.add('started');centerPlay.style.display='none';previousStamp=performance.now();});
+  player.on('play',()=>{playStatus.hidden=true;started=true;screen.classList.add('started');centerPlay.style.display='none';previousStamp=performance.now();});
   player.on('timeupdate', async data=>{
     if(correction || !started)return;
     const now=performance.now();
@@ -138,8 +145,10 @@ try{
   player.on('error',showVideoError);
 }catch(e){showVideoError();}
 function startVideo(){
-  if(!ready){centerPlay.dataset.pending='1';centerPlay.textContent='…';return;}
-  player.play().then(()=>{started=true;screen.classList.add('started');centerPlay.style.display='none';}).catch(showVideoError);
+  playStatus.hidden=false;
+  centerPlay.style.display='none';
+  if(!ready){centerPlay.dataset.pending='1';return;}
+  player.play().then(()=>{playStatus.hidden=true;started=true;screen.classList.add('started');centerPlay.style.display='none';}).catch(showVideoError);
 }
 centerPlay.addEventListener('click',startVideo);
 document.querySelectorAll('[data-plan]').forEach(btn=>btn.addEventListener('click',()=>{
